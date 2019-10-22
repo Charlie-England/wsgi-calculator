@@ -40,18 +40,58 @@ To submit your homework:
 
 
 """
-
+def main():
+    page ="""
+    <h1>How to use:</h1>
+    <table>
+        <tr><th>Functions</th></tr>
+        <tr><td>To Add: localhost:8080/add/\n</td></tr>
+        <tr><td>To Subtract: localhost:8080/subtract/\n</td></tr>
+        <tr><td>To multiply: localhost:8080/multiply/\n</td></tr>
+        <tr><td>To divide: localhost:8080/divide/\n</td></tr>
+    </table>
+    <table>
+        <tr><th>Separate Arguments with '/' here are some examples:</th></tr>
+        <tr><td>adding 5 and 8:  localhost:8080/add/5/8</td></tr>
+        <tr><td>divide 5 and 2:  localhost:8089/divide/5/2</td></tr>
+    </table>
+    """
+    return page
 
 def add(*args):
     """ Returns a STRING with the sum of the arguments """
 
     # TODO: Fill sum with the correct value, based on the
     # args provided.
-    sum = "0"
+    total = sum([int(x) for x in args])
 
-    return sum
+    return f"<h1>Sum: {total}</h1>"
 
 # TODO: Add functions for handling more arithmetic operations.
+
+def multiply(*args):
+    product = 1
+    for arg in args:
+        product = product * int(arg)
+
+    return f"<h1>Product: {product}</h1>"
+
+def subtract(*args):
+    args = list(args)
+    sub_total = int(args.pop(0))
+    for arg in args:
+        sub_total -= int(arg)
+
+    return f"<h1>Difference: {sub_total}</h1>"
+
+def divide(*args):
+    if "0" in args:
+        raise ZeroDivisionError
+    args = list(args)
+    div_total = int(args.pop(0))
+    for arg in args:
+        div_total = div_total / int(arg)
+    return f"<h1>Remainder: {div_total}</h1>"
 
 def resolve_path(path):
     """
@@ -63,8 +103,22 @@ def resolve_path(path):
     # examples provide the correct *syntax*, but you should
     # determine the actual values of func and args using the
     # path.
-    func = add
-    args = ['25', '32']
+    funcs = {
+        '':main,
+        'add':add,
+        'subtract':subtract,
+        'multiply':multiply,
+        'divide':divide
+    }
+    path = path.strip('/').split('/')
+
+    func_name = path[0]
+    args = path[1:]
+
+    try:
+        func = funcs[func_name]
+    except KeyError:
+        raise NameError
 
     return func, args
 
@@ -76,9 +130,31 @@ def application(environ, start_response):
     #
     # TODO (bonus): Add error handling for a user attempting
     # to divide by zero.
-    pass
+    headers = [("Content-type", "text/html")]
+    try:
+        path = environ.get("PATH_INFO", None)
+        if path is None:
+            raise NameError
+        func, args = resolve_path(path)
+        body = func(*args)
+        status = "200 OK"
+    except NameError:
+        status = "404 Not Found"
+        body = "<h1>Not Foundo</h1>"
+    except ZeroDivisionError:
+        status = "200 OK"
+        body = "<h1>Cannot divide by zero!</h1>"
+    except Exception:
+        status = "500 Internal Service Error"
+        body ="<h1>Internal Service Error</h1>"
+    finally:
+        headers.append(("Content-length", str(len(body))))
+        start_response(status, headers)
+        return [body.encode("utf-8")]
 
 if __name__ == '__main__':
     # TODO: Insert the same boilerplate wsgiref simple
     # server creation that you used in the book database.
-    pass
+    from wsgiref.simple_server import make_server
+    srv = make_server('localhost', 8080, application)
+    srv.serve_forever()
